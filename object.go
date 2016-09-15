@@ -11,13 +11,13 @@ type Object struct {
 
 // NewObject creates a new Object instace with default values
 func NewObject() *Object {
-    return &Object
+    return &Object{}
 }
 
 // Add adds the given node as a child of this object
 func (o *Object) Add(n Node) {
 
-    if n == o {
+    if n == Node(o) {
         glog.Error("cannot add object as a child of itself")
         return
     }

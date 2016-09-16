@@ -12,6 +12,7 @@ func main() {
     if nil != err {
         panic(err)
     }
+    defer win.Destroy()
 
     scene := mm.NewScene()
 
@@ -26,8 +27,9 @@ func main() {
 
     //cam := mm.NewPerspectiveCamera(1)
 
-    win.Render(scene, nil)
-
-    time.Sleep(time.Second * 2)
+    for !win.ShouldClose() {
+        win.Render(scene, nil)
+        time.Sleep(time.Millisecond * 10)
+    }
 
 }

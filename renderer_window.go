@@ -57,3 +57,26 @@ func (r *WindowRenderer) Render(scene Node, camera Projector) {
     r.window.SwapBuffers()
 
 }
+
+func (r *WindowRenderer) ShouldClose() bool {
+
+    glfw.PollEvents()
+
+    if r.window != nil {
+
+        return r.window.ShouldClose()
+
+    }
+
+    return true
+}
+
+func (r *WindowRenderer) Destroy() {
+
+    if r.window != nil {
+
+        r.window.Destroy()
+
+    }
+
+}

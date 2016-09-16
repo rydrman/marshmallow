@@ -7,10 +7,6 @@ import (
     "github.com/rydrman/marshmallow"
 )
 
-const (
-    x, y, z = 1, 2, 3
-)
-
 func TestNewVector3(t *testing.T) {
 
     a := mm.NewVector3()

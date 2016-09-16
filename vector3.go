@@ -26,10 +26,14 @@ func Vector3_Max() *Vector3 {
 }
 func Vector3_Min() *Vector3 {
     return &Vector3{
-        math.SmallestNonzeroFloat64,
-        math.SmallestNonzeroFloat64,
-        math.SmallestNonzeroFloat64,
+        -math.MaxFloat64,
+        -math.MaxFloat64,
+        -math.MaxFloat64,
     }
+}
+
+func (v *Vector3) String() string {
+    return fmt.Sprintf("&Vector3{X: %.4f, Y: %.4f, Z: %.4f}", v.X, v.Y, v.Z)
 }
 
 func (v *Vector3) Set(x, y, z float64) *Vector3 {

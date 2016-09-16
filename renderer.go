@@ -1,5 +1,5 @@
 package mm
 
 type Renderer interface {
-    Render(Node, Projector)
+    Render(*Scene, Projector)
 }

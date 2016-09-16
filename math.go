@@ -32,3 +32,9 @@ func Clamp(value, min, max float64) float64 {
     return math.Max(min, math.Min(max, value))
 
 }
+
+func EuclideanModulo(n, m float64) float64 {
+
+    return math.Mod(math.Mod(n, m)+m, m)
+
+}

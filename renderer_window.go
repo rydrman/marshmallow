@@ -49,9 +49,20 @@ func (r *WindowRenderer) setupWindow(w, h int) error {
 
 }
 
-func (r *WindowRenderer) Render(scene Node, camera Projector) {
+func (r *WindowRenderer) Render(scene *Scene, camera Projector) {
+
+    if nil == r.window {
+        return
+    }
 
     r.window.MakeContextCurrent()
+
+    if scene.BackgroundColor != nil {
+
+        gl.ClearColor(scene.BackgroundColor.R32(), scene.BackgroundColor.G32(), scene.BackgroundColor.B32(), 1)
+
+    }
+
     gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
     r.window.SwapBuffers()

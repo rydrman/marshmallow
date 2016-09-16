@@ -23,6 +23,24 @@ func NewColor() *Color {
 
 }
 
+func (color *Color) R32() float32 {
+
+  return float32(color.R)
+
+}
+
+func (color *Color) G32() float32 {
+
+  return float32(color.G)
+
+}
+
+func (color *Color) B32() float32 {
+
+  return float32(color.B)
+
+}
+
 func (color *Color) Set(r, g, b float64) *Color {
 
   color.R = r

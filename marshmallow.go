@@ -25,3 +25,9 @@ func init() {
     }
 
 }
+
+func CharAt(s string, i int) string {
+
+    return string([]rune(s)[i])
+
+}

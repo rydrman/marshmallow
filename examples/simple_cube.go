@@ -15,6 +15,7 @@ func main() {
     defer win.Destroy()
 
     scene := mm.NewScene()
+    scene.BackgroundColor = mm.Colors("powderblue")
 
     //geo := mm.NewCubeGeometry(1, 1, 1)
     //mat := mm.NewBasicMaterial(mm.MaterialProps{

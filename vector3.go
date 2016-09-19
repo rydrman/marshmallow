@@ -257,7 +257,7 @@ func (v *Vector3) MultiplyVectors(a, b *Vector3) *Vector3 {
 
 }*/
 
-/*func (v *Vector3) ApplyMatrix3(m *Matrix3) *Vector3 {
+func (v *Vector3) ApplyMatrix3(m *Matrix3) *Vector3 {
 
     x := v.X
     y := v.Y
@@ -270,7 +270,7 @@ func (v *Vector3) MultiplyVectors(a, b *Vector3) *Vector3 {
 
     return v
 
-}*/
+}
 
 func (v *Vector3) ApplyMatrix4(m *Matrix4) *Vector3 {
 

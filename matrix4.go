@@ -546,28 +546,29 @@ func (m *Matrix4) SetPosition(v *Vector3) *Matrix4 {
 
 }
 
-func (m Matrix4) GetInverse(target *Matrix4) *Matrix4 {
+func (m *Matrix4) GetInverse(src *Matrix4) *Matrix4 {
+
     defer func() {
         if r := recover(); r != nil {
-            target.Identity()
+            m.Identity()
         }
     }()
 
-    if nil == target {
-        target = NewMatrix4()
-    }
-    return m.MustGetInverse(target)
+    m.MustGetInverse(src)
+
+    return m
+
 }
 
-func (m Matrix4) MustGetInverse(target *Matrix4) *Matrix4 {
+func (m Matrix4) MustGetInverse(src *Matrix4) *Matrix4 {
 
-    if nil == target {
-        target = NewMatrix4()
+    if nil == src {
+        src = NewMatrix4()
     }
 
     // based on http://www.Euclideanspace.Com/maths/algebra/matrix/functions/inverse/fourD/index.Htm
     me := m.Elements
-    te := target.Elements
+    te := src.Elements
 
     n11, n21, n31, n41 := me[0], me[1], me[2], me[3]
     n12, n22, n32, n42 := me[4], me[5], me[6], me[7]
@@ -609,7 +610,7 @@ func (m Matrix4) MustGetInverse(target *Matrix4) *Matrix4 {
     te[14] = (n14*n22*n31 - n12*n24*n31 - n14*n21*n32 + n11*n24*n32 + n12*n21*n34 - n11*n22*n34) * detInv
     te[15] = (n12*n23*n31 - n13*n22*n31 + n13*n21*n32 - n11*n23*n32 - n12*n21*n33 + n11*n22*n33) * detInv
 
-    return target
+    return src
 
 }
 

@@ -1,0 +1,1266 @@
+package mm
+
+import (
+    "fmt"
+    "sort"
+)
+
+var GeometryIdCount = 0
+
+type GeometryFace struct {
+    A                       int
+    B                       int
+    C                       int
+    Color                   *Color
+    VertexColors            []*Color
+    Normal                  *Vector3
+    __originalFaceNormal    *Vector3
+    VertexNormals           []*Vector3
+    __originalVertexNormals []*Vector3
+    MaterialIndex           int
+}
+
+type MorphTarget struct {
+    Name     string
+    Vertices []*Vector3
+}
+
+type VertexNormals struct {
+    A *Vector3
+    B *Vector3
+    C *Vector3
+}
+
+type MorphNormal struct {
+    FaceNormals   []*Vector3
+    VertexNormals []*VertexNormals
+    *Vector3
+}
+
+type BasicGeometry struct {
+    ID   int
+    UUID string
+
+    Name string
+    Type string
+
+    Vertices      []*Vector3
+    Colors        []*Color
+    Faces         []*GeometryFace
+    FaceVertexUvs [][]*Vector3
+
+    MorphTargets []*MorphTarget
+    MorphNormals []*MorphNormal
+
+    SkinWeights []float64
+    SkinIndices []int
+
+    LineDistances []float64
+
+    BoundingBox *Box3
+    //BoundingSphere *Sphere TODO
+
+    // update flags
+    ElementsNeedUpdate      bool
+    VerticesNeedUpdate      bool
+    UvsNeedUpdate           bool
+    NormalsNeedUpdate       bool
+    ColorsNeedUpdate        bool
+    LineDistancesNeedUpdate bool
+    GroupsNeedUpdate        bool
+
+    //*EventDispatcher TODO
+}
+
+func NewBasicGeometry() *BasicGeometry {
+
+    GeometryIdCount++
+    g := &BasicGeometry{
+
+        ID:   GeometryIdCount,
+        UUID: GenerateUUID(),
+
+        Name:          "",
+        Type:          "Geometry",
+        Vertices:      make([]*Vector3, 0),
+        Colors:        make([]*Color, 0),
+        Faces:         make([]*GeometryFace, 0),
+        FaceVertexUvs: make([][]*Vector3, 0),
+
+        MorphTargets: make([]*MorphTarget, 0),
+        MorphNormals: make([]*MorphNormal, 0),
+
+        SkinWeights: make([]float64, 0),
+        SkinIndices: make([]int, 0),
+
+        LineDistances: make([]float64, 0),
+
+        BoundingBox: nil,
+        //BoundingSphere: nil, TODO
+
+        // update flags
+
+        ElementsNeedUpdate:      false,
+        VerticesNeedUpdate:      false,
+        UvsNeedUpdate:           false,
+        NormalsNeedUpdate:       false,
+        ColorsNeedUpdate:        false,
+        LineDistancesNeedUpdate: false,
+        GroupsNeedUpdate:        false,
+    }
+
+    return g
+
+}
+
+func (g *BasicGeometry) ApplyMatrix(matrix *Matrix4) *Geometry {
+
+    normalMatrix := NewMatrix3().GetNormalMatrix(matrix)
+
+    for i, il := 0, len(g.Vertices); i < il; i++ {
+
+        vertex := g.Vertices[i]
+        vertex.ApplyMatrix4(matrix)
+
+    }
+
+    for i, il := 0, len(g.Faces); i < il; i++ {
+
+        face := g.Faces[i]
+        face.Normal.ApplyMatrix3(normalMatrix).Normalize()
+
+        for j, jl := 0, len(face.VertexNormals); j < jl; j++ {
+
+            face.VertexNormals[j].ApplyMatrix3(normalMatrix).Normalize()
+
+        }
+
+    }
+
+    if g.BoundingBox != nil {
+
+        g.ComputeBoundingBox()
+
+    }
+
+    if g.BoundingSphere != nil {
+
+        g.ComputeBoundingSphere()
+
+    }
+
+    g.VerticesNeedUpdate = true
+    g.NormalsNeedUpdate = true
+
+    return g
+
+}
+
+func (g *BasicGeometry) RotateX(angle float64) *Geometry {
+
+    // rotate geometry around world x-axis
+
+    m1 := NewMatrix4()
+
+    m1.MakeRotationX(angle)
+
+    g.ApplyMatrix(m1)
+
+    return g
+
+}
+
+func (g *BasicGeometry) RotateY(angle float64) *Geometry {
+
+    // rotate geometry around world y-axis
+
+    m1 := NewMatrix4()
+
+    m1.MakeRotationY(angle)
+
+    g.ApplyMatrix(m1)
+
+    return g
+
+}
+
+func (g *BasicGeometry) RotateZ(angle float64) *Geometry {
+
+    // rotate geometry around world z-axis
+
+    m1 := NewMatrix4()
+
+    m1.MakeRotationZ(angle)
+
+    g.ApplyMatrix(m1)
+
+    return g
+
+}
+
+func (g *BasicGeometry) Translate(x, y, z float64) *Geometry {
+
+    // translate geometry
+
+    m1 := NewMatrix4()
+
+    m1.MakeTranslation(x, y, z)
+
+    g.ApplyMatrix(m1)
+
+    return g
+
+}
+
+func (g *BasicGeometry) Scale(x, y, z float64) *Geometry {
+
+    // scale geometry
+
+    m1 := NewMatrix4()
+
+    m1.MakeScale(x, y, z)
+
+    g.ApplyMatrix(m1)
+
+    return g
+
+}
+
+func (g *BasicGeometry) LookAt(vector *Vector3) {
+
+    obj := NewObject3D()
+
+    obj.LookAt(vector)
+
+    obj.UpdateMatrix()
+
+    g.ApplyMatrix(obj.Matrix)
+
+}
+
+/*func (g *BasicGeometry) FromBufferGeometry(geometry *BufferGeometry) *Geometry {
+
+    scope := g
+
+    var indices []int
+    if geometry.Index != nil {
+        inices = geometry.Index.Array
+    }
+    attributes := geometry.Attributes
+
+    positions := attributes.Position.Array
+    var normals []*Vector3
+    if attributes.Normal != nil {
+        normals := attributes.Normal.Array
+    }
+    var colors []*Color
+    if attributes.Color != nil {
+        colors = attributes.Color.Array
+    }
+    var uvs []*Vector3
+    if attributes.Uv != nil {
+        uvs = attributes.Uv.Array
+    }
+    var uvs2 []*Vector3
+    if attributes.Uv2 != nil {
+        uvs2 = attributes.Uv2.Array
+    }
+
+    if uvs2 != nil {
+        g.FaceVertexUvs[1] = make([]float64)
+    }
+
+    tempNormals := make([]*Vector3)
+    tempUVs := make([]*Vector3)
+    tempUVs2 := make([]*Vector3)
+
+    for i, j = 0, 0; i < len(positions); i, j = i+3, j+2 {
+
+        scope.Vertices = append(scope.Vertices, NewVector3().Set(positions[i], positions[i+1], positions[i+2]))
+
+        if normals != nil {
+
+            tempNormals = append(tempNormals, NewVector3().Set(normals[i], normals[i+1], normals[i+2]))
+
+        }
+
+        if colors != nil {
+
+            scope.Colors = append(scope.Colors, NewColor().Set(colors[i], colors[i+1], colors[i+2]))
+
+        }
+
+        if uvs != nil {
+
+            tempUVs = append(tempUVs, NewVector2().Set(uvs[j], uvs[j+1]))
+
+        }
+
+        if uvs2 != nil {
+
+            tempUVs2 = append(tempUVs2, NewVector2().Set(uvs2[j], uvs2[j+1]))
+
+        }
+
+    }
+
+    addFace := func(a, b, c *Vector3, materialIndex int) {
+
+        vertexNormals := make([]*Vector3, 0)
+        if normals != nil {
+            vertexNormals = []*Vector3{tempNormals[a].Clone(), tempNormals[b].Clone(), tempNormals[c].Clone()}
+        }
+
+        vertexColors := make([]*Color, 0)
+        if colors != nil {
+            vertexColors = []*Vector3{scope.Colors[a].Clone(), scope.Colors[b].Clone(), scope.Colors[c].Clone()}
+        }
+        face := NewFace3().Set(a, b, c, vertexNormals, vertexColors, materialIndex)
+
+        scope.Faces = append(scope.Faces, face)
+
+        if uvs != nil {
+
+            scope.FaceVertexUvs[0] = append(scope.FaceVertexUvs[0], []*Vector3{tempUVs[a].Clone(), tempUVs[b].Clone(), tempUVs[c].Clone()})
+
+        }
+
+        if uvs2 != nil {
+
+            scope.FaceVertexUvs[1] = append(scope.FaceVertexUvs[1], []*Vector3{tempUVs2[a].Clone(), tempUVs2[b].Clone(), tempUVs2[c].Clone()})
+
+        }
+
+    }
+
+    if indices != nil {
+
+        groups := geometry.Groups
+
+        if len(groups) > 0 {
+
+            for i := 0; i < len(groups); i++ {
+
+                group := groups[i]
+
+                start := group.Start
+                count := group.Count
+
+                for j, jl := start, start+count; j < jl; j += 3 {
+
+                    addFace(indices[j], indices[j+1], indices[j+2], group.MaterialIndex)
+
+                }
+
+            }
+
+        } else {
+
+            for i := 0; i < len(indices); i += 3 {
+
+                addFace(indices[i], indices[i+1], indices[i+2])
+
+            }
+
+        }
+
+    } else {
+
+        for i := 0; i < len(positions)/3; i += 3 {
+
+            addFace(i, i+1, i+2)
+
+        }
+
+    }
+
+    g.ComputeFaceNormals()
+
+    if geometry.BoundingBox != nil {
+
+        g.BoundingBox = geometry.BoundingBox.Clone()
+
+    }
+
+    if geometry.BoundingSphere != nil {
+
+        g.BoundingSphere = geometry.BoundingSphere.Clone()
+
+    }
+
+    return g
+
+}*/
+
+func (g *BasicGeometry) Center() *Vector3 {
+
+    g.ComputeBoundingBox()
+
+    offset := g.BoundingBox.Center(nil).Negate()
+
+    g.Translate(offset.X, offset.Y, offset.Z)
+
+    return offset
+
+}
+
+func (g *BasicGeometry) Normalize() *Geometry {
+
+    g.ComputeBoundingSphere()
+
+    center := g.BoundingSphere.Center
+    radius := g.BoundingSphere.Radius
+
+    s := 1.0
+    if radius != 0 {
+        s = 1.0 / radius
+    }
+
+    matrix := NewMatrix4()
+    matrix.Set(
+        s, 0, 0, -s*center.X,
+        0, s, 0, -s*center.Y,
+        0, 0, s, -s*center.Z,
+        0, 0, 0, 1,
+    )
+
+    g.ApplyMatrix(matrix)
+
+    return g
+
+}
+
+func (g *BasicGeometry) ComputeFaceNormals() {
+
+    cb := NewVector3()
+    ab := NewVector3()
+
+    for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+        face := g.Faces[f]
+
+        vA := g.Vertices[face.A]
+        vB := g.Vertices[face.B]
+        vC := g.Vertices[face.C]
+
+        cb.SubVectors(vC, vB)
+        ab.SubVectors(vA, vB)
+        cb.Cross(ab)
+
+        cb.Normalize()
+
+        face.Normal.Copy(cb)
+
+    }
+
+}
+
+func (g *BasicGeometry) ComputeVertexNormals(areaWeighted bool) {
+
+    var v, vl, f, fl int
+    var face *GeometryFace
+
+    vertices := make([]*Vector3, len(g.Vertices))
+
+    for v, vl := 0, len(g.Vertices); v < vl; v++ {
+
+        vertices[v] = NewVector3()
+
+    }
+
+    if areaWeighted {
+
+        // vertex normals weighted by triangle areas
+        // http://www.Iquilezles.Org/www/articles/normals/normals.Htm
+
+        var vA, vB, vC *Vector3
+        cb := NewVector3()
+        ab := NewVector3()
+
+        for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+            face = g.Faces[f]
+
+            vA = g.Vertices[face.A]
+            vB = g.Vertices[face.B]
+            vC = g.Vertices[face.C]
+
+            cb.SubVectors(vC, vB)
+            ab.SubVectors(vA, vB)
+            cb.Cross(ab)
+
+            vertices[face.A].Add(cb)
+            vertices[face.B].Add(cb)
+            vertices[face.C].Add(cb)
+
+        }
+
+    } else {
+
+        for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+            face = g.Faces[f]
+
+            vertices[face.A].Add(face.Normal)
+            vertices[face.B].Add(face.Normal)
+            vertices[face.C].Add(face.Normal)
+
+        }
+
+    }
+
+    for v, vl := 0, len(g.Vertices); v < vl; v++ {
+
+        vertices[v].Normalize()
+
+    }
+
+    for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+        face = g.Faces[f]
+
+        vertexNormals := face.VertexNormals
+
+        if len(vertexNormals) == 3 {
+
+            vertexNormals[0].Copy(vertices[face.A])
+            vertexNormals[1].Copy(vertices[face.B])
+            vertexNormals[2].Copy(vertices[face.C])
+
+        } else {
+
+            vertexNormals[0] = vertices[face.A].Clone()
+            vertexNormals[1] = vertices[face.B].Clone()
+            vertexNormals[2] = vertices[face.C].Clone()
+
+        }
+
+    }
+
+    if len(g.Faces) > 0 {
+
+        g.NormalsNeedUpdate = true
+
+    }
+
+}
+
+func (g *BasicGeometry) ComputeMorphNormals() {
+
+    var i, il, f, fl int
+    var face *GeometryFace
+
+    // save original normals
+    // - create temp variables on first access
+    //   otherwise just copy (for faster repeated calls)
+
+    for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+        face = g.Faces[f]
+
+        if nil == face.__originalFaceNormal {
+
+            face.__originalFaceNormal = face.Normal.Clone()
+
+        } else {
+
+            face.__originalFaceNormal.Copy(face.Normal)
+
+        }
+
+        if nil == face.__originalVertexNormals {
+            face.__originalVertexNormals = []*Vector3{}
+        }
+
+        for i, il := 0, len(face.VertexNormals); i < il; i++ {
+
+            if nil == face.__originalVertexNormals[i] {
+
+                face.__originalVertexNormals[i] = face.VertexNormals[i].Clone()
+
+            } else {
+
+                face.__originalVertexNormals[i].Copy(face.VertexNormals[i])
+
+            }
+
+        }
+
+    }
+
+    // use temp geometry to compute face and vertex normals for each morph
+
+    tmpGeo := NewGeometry()
+    tmpGeo.Faces = g.Faces
+
+    for i, il := 0, len(g.MorphTargets); i < il; i++ {
+
+        // create on first access
+
+        if nil == g.MorphNormals[i] {
+
+            g.MorphNormals[i] = &MorphNormal{
+                FaceNormals:   []*Vector3{},
+                VertexNormals: []*VertexNormals{},
+                Vector3:       NewVector3(),
+            }
+
+            dstNormalsFace := g.MorphNormals[i].FaceNormals
+            dstNormalsVertex := g.MorphNormals[i].VertexNormals
+
+            var faceNormal *Vector3
+            var vertexNormals *VertexNormals
+
+            for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+                faceNormal = NewVector3()
+                vertexNormals = &VertexNormals{NewVector3(), NewVector3(), NewVector3()}
+
+                dstNormalsFace = append(dstNormalsFace, faceNormal)
+                dstNormalsVertex = append(dstNormalsVertex, vertexNormals)
+
+            }
+
+        }
+
+        morphNormals := g.MorphNormals[i]
+
+        // set vertices to morph target
+
+        tmpGeo.Vertices = g.MorphTargets[i].Vertices
+
+        // compute morph normals
+
+        tmpGeo.ComputeFaceNormals()
+        tmpGeo.ComputeVertexNormals(false)
+
+        // store morph normals
+
+        var faceNormal *Vector3
+        var vertexNormals *VertexNormals
+
+        for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+            face = g.Faces[f]
+
+            faceNormal = morphNormals.FaceNormals[f]
+            vertexNormals = morphNormals.VertexNormals[f]
+
+            faceNormal.Copy(face.Normal)
+
+            vertexNormals.A.Copy(face.VertexNormals[0])
+            vertexNormals.B.Copy(face.VertexNormals[1])
+            vertexNormals.C.Copy(face.VertexNormals[2])
+
+        }
+
+    }
+
+    // restore original normals
+
+    for f, fl := 0, len(g.Faces); f < fl; f++ {
+
+        face = g.Faces[f]
+
+        face.Normal = face.__originalFaceNormal
+        face.VertexNormals = face.__originalVertexNormals
+
+    }
+
+}
+
+func (g *BasicGeometry) ComputeLineDistances() {
+
+    d := 0.0
+    vertices := g.Vertices
+
+    for i, il := 0, len(vertices); i < il; i++ {
+
+        if i > 0 {
+
+            d += vertices[i].DistanceTo(vertices[i-1])
+
+        }
+
+        g.LineDistances[i] = d
+
+    }
+
+}
+
+func (g *BasicGeometry) ComputeBoundingBox() {
+
+    if g.BoundingBox == nil {
+
+        g.BoundingBox = NewBox3()
+
+    }
+
+    g.BoundingBox.SetFromPoints(g.Vertices)
+
+}
+
+func (g *BasicGeometry) ComputeBoundingSphere() {
+
+    if g.BoundingSphere == nil {
+
+        g.BoundingSphere = NewSphere()
+
+    }
+
+    g.BoundingSphere.SetFromPoints(g.Vertices, nil)
+
+}
+
+func (g *BasicGeometry) Merge(geometry *Geometry, matrix *Matrix4, materialIndexOffset int) {
+
+    var normalMatrix *Matrix3
+    vertexOffset := len(g.Vertices)
+    vertices1 := g.Vertices
+    vertices2 := geometry.Vertices
+    faces1 := g.Faces
+    faces2 := geometry.Faces
+    uvs1 := g.FaceVertexUvs[0]
+    uvs2 := geometry.FaceVertexUvs[0]
+
+    if matrix != nil {
+
+        normalMatrix = NewMatrix3().GetNormalMatrix(matrix)
+
+    }
+
+    // vertices
+
+    for i, il := 0, len(vertices2); i < il; i++ {
+
+        vertex := vertices2[i]
+
+        vertexCopy := vertex.Clone()
+
+        if matrix != nil {
+            vertexCopy.ApplyMatrix4(matrix)
+        }
+
+        vertices1 = append(vertices1, vertexCopy)
+
+    }
+
+    // faces
+
+    for i, il := 0, len(faces2); i < il; i++ {
+
+        face := faces2[i]
+        var faceCopy *GeometryFace
+        var normal *Vector3
+        var color *Color
+        faceVertexNormals := face.VertexNormals
+        faceVertexColors := face.VertexColors
+
+        faceCopy = &GeometryFace{
+            face.A + vertexOffset,
+            face.B + vertexOffset,
+            face.C + vertexOffset,
+            nil, nil, nil, nil, nil, nil, 0,
+        }
+        faceCopy.Normal.Copy(face.Normal)
+
+        if normalMatrix != nil {
+
+            faceCopy.Normal.ApplyMatrix3(normalMatrix).Normalize()
+
+        }
+
+        for j, jl := 0, len(faceVertexNormals); j < jl; j++ {
+
+            normal = faceVertexNormals[j].Clone()
+
+            if normalMatrix != nil {
+
+                normal.ApplyMatrix3(normalMatrix).Normalize()
+
+            }
+
+            faceCopy.VertexNormals = append(faceCopy.VertexNormals, normal)
+
+        }
+
+        faceCopy.Color.Copy(face.Color)
+
+        for j, jl := 0, len(faceVertexColors); j < jl; j++ {
+
+            color = faceVertexColors[j]
+            faceCopy.VertexColors = append(faceCopy.VertexColors, color.Clone())
+
+        }
+
+        faceCopy.MaterialIndex = face.MaterialIndex + materialIndexOffset
+
+        faces1 = append(faces1, faceCopy)
+
+    }
+
+    // uvs
+
+    for i, il := 0, len(uvs2); i < il; i++ {
+
+        uv := uvs2[i]
+        uvCopy := []float64{}
+
+        if uv == nil {
+
+            continue
+
+        }
+
+        for j, jl := 0, uv.Length(); j < jl; j++ {
+
+            uvCopy = append(uvCopy, uv[j].Clone())
+
+        }
+
+        uvs1 = append(uvs1, uvCopy)
+
+    }
+
+}
+
+func (g *BasicGeometry) MergeMesh(mesh *Mesh) {
+
+    if mesh.MatrixAutoUpdate {
+        mesh.UpdateMatrix()
+    }
+
+    g.Merge(mesh.Geometry, mesh.Matrix, 0)
+
+}
+
+/*
+ * Checks for duplicate vertices with hashmap.
+ * Duplicated vertices are removed
+ * and faces" vertices are updated.
+ */
+
+func (g *BasicGeometry) MergeVertices() int {
+
+    verticesMap := map[string]*Vertex{} // Hashmap for looking up vertices by position coordinates (and making sure they are unique)
+    unique := []*Vector3{}
+    changes := []*Vector3{}
+
+    var v *Vector3
+    var key string
+    precisionPoints := 4 // number of decimal points, e.G. 4 for epsilon of 0.0001
+    precision := Math.Pow(10, precisionPoints)
+    var i, il int
+    var face *Face3
+    var indices []float64
+    var j, jl int
+
+    for i, il := 0, len(g.Vertices); i < il; i++ {
+
+        v = g.Vertices[i]
+        key = fmt.Sprintf("%d_%d_%d", Round(v.X*precision), Round(v.Y*precision), Round(v.Z*precision))
+
+        if verticesMap[key] == nil {
+
+            verticesMap[key] = i
+            unique = append(unique, g.Vertices[i])
+            changes[i] = len(unique) - 1
+
+        } else {
+
+            //glog.Infof("Duplicate vertex found. ", i, " could be using ", verticesMap[key])
+            changes[i] = changes[verticesMap[key]]
+
+        }
+
+    }
+
+    // if faces are completely degenerate after merging vertices, we
+    // have to remove them from the geometry.
+    faceIndicesToRemove := []int{}
+
+    for i, il := 0, len(g.Faces); i < il; i++ {
+
+        face = g.Faces[i]
+
+        face.A = changes[face.A]
+        face.B = changes[face.B]
+        face.C = changes[face.C]
+
+        indices = []float64{face.A, face.B, face.C}
+
+        dupIndex := -1
+
+        // if any duplicate vertices are found in a Face3
+        // we have to remove the face as nothing can be saved
+        for n := 0; n < 3; n++ {
+
+            if indices[n] == indices[(n+1)%3] {
+
+                dupIndex = n
+                faceIndicesToRemove = append(faceIndicesToRemove, i)
+                break
+
+            }
+
+        }
+
+    }
+
+    for i = len(faceIndicesToRemove) - 1; i >= 0; i-- {
+
+        idx := faceIndicesToRemove[i]
+
+        g.Faces.Splice(idx, 1)
+
+        for j, jl := 0, len(g.FaceVertexUvs); j < jl; j++ {
+
+            g.FaceVertexUvs[j].Splice(idx, 1)
+
+        }
+
+    }
+
+    // Use unique set of vertices
+
+    diff := len(g.Vertices) - len(unique)
+    g.Vertices = unique
+    return diff
+
+}
+
+func (g *BasicGeometry) SortFacesByMaterialIndex() {
+
+    faces := g.Faces
+    length := len(faces)
+
+    // tag faces
+
+    for i := 0; i < length; i++ {
+
+        faces[i]._id = i
+
+    }
+
+    // sort faces
+    sort.Stable(FaceList(faces))
+
+    // sort uvs
+
+    uvs1 := g.FaceVertexUvs[0]
+    uvs2 := g.FaceVertexUvs[1]
+
+    var newUvs1, newUvs2 []*Vector3
+
+    if uvs1 && len(uvs1) == length {
+        newUvs1 = []*Vector3{}
+    }
+    if uvs2 && len(uvs2) == length {
+        newUvs2 = []*Vector3{}
+    }
+
+    for i := 0; i < length; i++ {
+
+        id := faces[i]._id
+
+        if newUvs1 {
+            newUvs1.Push(uvs1[id])
+        }
+        if newUvs2 {
+            newUvs2.Push(uvs2[id])
+        }
+
+    }
+
+    if newUvs1 {
+        g.FaceVertexUvs[0] = newUvs1
+    }
+    if newUvs2 {
+        g.FaceVertexUvs[1] = newUvs2
+    }
+
+}
+
+/*func (g *BasicGeometry) ToJSON() {
+
+    data := {
+        metadata: {
+            version: 4.4,
+            type: "Geometry",
+            generator: "Geometry.ToJSON"
+        }
+    }
+
+    // standard Geometry serialization
+
+    data.Uuid = g.Uuid
+    data.Type = g.Type
+    if g.Name != "" { data.Name = g.Name; }
+
+    if  g.Parameters != nil  {
+
+        parameters := g.Parameters
+
+        for  var key in parameters  {
+
+            if parameters[ key ] != nil { data[ key ] = parameters[ key ]; }
+
+        }
+
+        return data
+
+    }
+
+    vertices := []
+
+    for  i := 0; i < len(g.Vertices); i ++  {
+
+        vertex := g.Vertices[ i ]
+        append( vertices,  vertex.X, vertex.Y, vertex.Z  )
+
+    }
+
+    faces := []
+    normals := []
+    normalsHash := {}
+    colors := []
+    colorsHash := {}
+    uvs := []
+    uvsHash := {}
+
+    for  i := 0; i < len(g.Faces); i ++  {
+
+        face := g.Faces[ i ]
+
+        hasMaterial := true
+        hasFaceUv := false; // deprecated
+        hasFaceVertexUv := g.FaceVertexUvs[ 0 ][ i ] != nil
+        hasFaceNormal := len(face.Normal)() > 0
+        hasFaceVertexNormal := len(face.VertexNormals) > 0
+        hasFaceColor := face.Color.R != 1 || face.Color.G != 1 || face.Color.B != 1
+        hasFaceVertexColor := len(face.VertexColors) > 0
+
+        faceType := 0
+
+        faceType = setBit( faceType, 0, 0 ); // isQuad
+        faceType = setBit( faceType, 1, hasMaterial )
+        faceType = setBit( faceType, 2, hasFaceUv )
+        faceType = setBit( faceType, 3, hasFaceVertexUv )
+        faceType = setBit( faceType, 4, hasFaceNormal )
+        faceType = setBit( faceType, 5, hasFaceVertexNormal )
+        faceType = setBit( faceType, 6, hasFaceColor )
+        faceType = setBit( faceType, 7, hasFaceVertexColor )
+
+        append( faces,  faceType  )
+        append( faces,  face.A, face.B, face.C  )
+        append( faces,  face.MaterialIndex  )
+
+        if  hasFaceVertexUv  {
+
+            faceVertexUvs := g.FaceVertexUvs[ 0 ][ i ]
+
+            faces.Push(
+                getUvIndex( faceVertexUvs[ 0 ] ),
+                getUvIndex( faceVertexUvs[ 1 ] ),
+                getUvIndex( faceVertexUvs[ 2 ] )
+            )
+
+        }
+
+        if  hasFaceNormal  {
+
+            append( faces,  getNormalIndex( face.Normal )  )
+
+        }
+
+        if  hasFaceVertexNormal  {
+
+            vertexNormals := face.VertexNormals
+
+            faces.Push(
+                getNormalIndex( vertexNormals[ 0 ] ),
+                getNormalIndex( vertexNormals[ 1 ] ),
+                getNormalIndex( vertexNormals[ 2 ] )
+            )
+
+        }
+
+        if  hasFaceColor  {
+
+            append( faces,  getColorIndex( face.Color )  )
+
+        }
+
+        if  hasFaceVertexColor  {
+
+            vertexColors := face.VertexColors
+
+            faces.Push(
+                getColorIndex( vertexColors[ 0 ] ),
+                getColorIndex( vertexColors[ 1 ] ),
+                getColorIndex( vertexColors[ 2 ] )
+            )
+
+        }
+
+    }
+
+    function setBit( value, position, enabled ) {
+
+        return enabled ? value | ( 1 << position ) : value & ( ~ ( 1 << position ) )
+
+    }
+
+    function getNormalIndex( normal ) {
+
+        hash := normal.X.ToString() + normal.Y.ToString() + normal.Z.ToString()
+
+        if  normalsHash[ hash ] != nil  {
+
+            return normalsHash[ hash ]
+
+        }
+
+        normalsHash[ hash ] = len(normals) / 3
+        append( normals,  normal.X, normal.Y, normal.Z  )
+
+        return normalsHash[ hash ]
+
+    }
+
+    function getColorIndex( color ) {
+
+        hash := color.R.ToString() + color.G.ToString() + color.B.ToString()
+
+        if  colorsHash[ hash ] != nil  {
+
+            return colorsHash[ hash ]
+
+        }
+
+        colorsHash[ hash ] = len(colors)
+        append( colors,  color.GetHex()  )
+
+        return colorsHash[ hash ]
+
+    }
+
+    function getUvIndex( uv ) {
+
+        hash := uv.X.ToString() + uv.Y.ToString()
+
+        if  uvsHash[ hash ] != nil  {
+
+            return uvsHash[ hash ]
+
+        }
+
+        uvsHash[ hash ] = len(uvs) / 2
+        append( uvs,  uv.X, uv.Y  )
+
+        return uvsHash[ hash ]
+
+    }
+
+    data.Data = {}
+
+    data.Data.Vertices = vertices
+    data.Data.Normals = normals
+    if len(colors) > 0 { data.Data.Colors = colors; }
+    if len(uvs) > 0 { data.Data.Uvs = [ uvs ]; // temporal backward compatibility }
+    data.Data.Faces = faces
+
+    return data
+
+}*/
+
+func (g *BasicGeometry) Clone() {
+
+    /*
+       // Handle primitives
+
+       parameters := g.Parameters
+
+       if  parameters != nil  {
+
+           values := []
+
+           for  var key in parameters  {
+
+               append( values,  parameters[ key ]  )
+
+           }
+
+           geometry := Object.Create( g.Constructor.Prototype )
+           g.Constructor.Apply( geometry, values )
+           return geometry
+
+       }
+
+       return NewGeometry().Copy( g )
+    */
+
+    return NewGeometry().Copy(g)
+
+}
+
+func (g *BasicGeometry) Copy(source *Geometry) *Geometry {
+
+    g.Vertices = []*Vector3{}
+    g.Faces = []*Face3{}
+    g.FaceVertexUvs = [][]*Vector2{}
+
+    vertices := source.Vertices
+
+    for i, il := 0, len(vertices); i < il; i++ {
+
+        g.Vertices = append(g.Vertices, vertices[i].Clone())
+
+    }
+
+    faces := source.Faces
+
+    for i, il := 0, len(faces); i < il; i++ {
+
+        g.Faces = append(g.Faces, faces[i].Clone())
+
+    }
+
+    for i, il := 0, len(source.FaceVertexUvs); i < il; i++ {
+
+        faceVertexUvs := source.FaceVertexUvs[i]
+
+        if g.FaceVertexUvs[i] == nil {
+
+            g.FaceVertexUvs[i] = []*Vector2{}
+
+        }
+
+        for j, jl := 0, len(faceVertexUvs); j < jl; j++ {
+
+            uvs := faceVertexUvs[j]
+            uvsCopy := []*Vector2{}
+
+            for k, kl := 0, len(uvs); k < kl; k++ {
+
+                uv := uvs[k]
+
+                uvsCopy = append(uvsCopy, uv.Clone())
+
+            }
+
+            g.FaceVertexUvs[i] = append(g.FaceVertexUvs[i], uvsCopy)
+
+        }
+
+    }
+
+    return g
+
+}
+
+func (g *BasicGeometry) Dispose() {
+
+    g.DispatchEvent(&Event{Type: "dispose"})
+
+}

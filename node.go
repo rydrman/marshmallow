@@ -11,3 +11,30 @@ type Node interface {
 
     setParent(Node)
 }
+
+func IterateDepth(n Node) <-chan Node {
+
+    ch := make(chan Node)
+
+    go func() {
+
+        yieldChildrenDepth(n, ch)
+        close(ch)
+
+    }()
+
+    return ch
+
+}
+
+func yieldChildrenDepth(n Node, ch chan Node) {
+
+    ch <- n
+
+    for _, child := range n.GetChildren() {
+
+        yieldChildrenDepth(child, ch)
+
+    }
+
+}

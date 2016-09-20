@@ -7,7 +7,8 @@ import (
     "github.com/rydrman/marshmallow"
 )
 
-func matrixEquals4(a, b *mm.Matrix4, tolerance float64) bool {
+func matrixEquals4(a, b *mm.Matrix4) bool {
+    tolerance := 0.0001
     for i, ea := range a.Elements {
         delta := ea - b.Elements[i]
         if delta > tolerance {
@@ -55,13 +56,13 @@ func TestMatrix4_Copy(t *testing.T) {
     a := mm.NewMatrix4().Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
     b := mm.NewMatrix4().Copy(a)
 
-    if !matrixEquals4(a, b, 0.0001) {
+    if !matrixEquals4(a, b) {
         t.Errorf("copied matrix does not equal source")
     }
 
     // ensure that it is a true copy
     a.Elements[0] = 2
-    if matrixEquals4(a, b, 0.0001) {
+    if matrixEquals4(a, b) {
         t.Errorf("matrix copy did not create a tru copy")
     }
 
@@ -149,11 +150,11 @@ func TestMatrix4_GetInverse(t *testing.T) {
     a := mm.NewMatrix4()
     b := mm.NewMatrix4().Set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-    if matrixEquals4(a, b, 0.0001) {
+    if matrixEquals4(a, b) {
         t.Error("b should not be an identity matrix yet")
     }
     b.GetInverse(a)
-    if !matrixEquals4(b, mm.NewMatrix4(), 0.0001) {
+    if !matrixEquals4(b, mm.NewMatrix4()) {
         t.Error("b should have become an identity matrix")
     }
 
@@ -178,7 +179,7 @@ func TestMatrix4_GetInverse(t *testing.T) {
         mSelfInverse.GetInverse(mSelfInverse)
 
         // self-inverse should the same as inverse
-        if !matrixEquals4(mSelfInverse, mInverse, 0.0001) {
+        if !matrixEquals4(mSelfInverse, mInverse) {
             t.Error()
         }
 
@@ -193,7 +194,7 @@ func TestMatrix4_GetInverse(t *testing.T) {
         if math.Abs(mProduct.Determinant()-1) > 0.0001 {
             t.Error()
         }
-        if !matrixEquals4(mProduct, identity, 0.0001) {
+        if !matrixEquals4(mProduct, identity) {
             t.Error()
         }
     }
@@ -222,7 +223,7 @@ func TestMatrix4_MakeExtractBasis(t *testing.T) {
 
     a := mm.NewMatrix4().MakeBasis(identityBasis[0], identityBasis[1], identityBasis[2])
     identity := mm.NewMatrix4()
-    if !matrixEquals4(a, identity, 0.0001) {
+    if !matrixEquals4(a, identity) {
         t.Error()
     }
 
@@ -270,17 +271,17 @@ func TestMatrix4_MakeExtractBasis(t *testing.T) {
 func TestMatrix4_Transpose(t *testing.T) {
     a := mm.NewMatrix4()
     b := a.Clone().Transpose()
-    if !matrixEquals4(a, b, 0.0001) {
+    if !matrixEquals4(a, b) {
         t.Error("transpose of identity should equal identity")
     }
 
     b = mm.NewMatrix4().Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
     c := b.Clone().Transpose()
-    if matrixEquals4(b, c, 0.0001) {
+    if matrixEquals4(b, c) {
         t.Error("non-transposed should no equal")
     }
     c.Transpose()
-    if !matrixEquals4(b, c, 0.0001) {
+    if !matrixEquals4(b, c) {
         t.Error("transposed should equal")
         t.Error(b)
         t.Error(c)
@@ -291,13 +292,13 @@ func TestMatrix4_Clone(t *testing.T) {
     a := mm.NewMatrix4().Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
     b := a.Clone()
 
-    if !matrixEquals4(a, b, 0.0001) {
+    if !matrixEquals4(a, b) {
         t.Error("clone of a should equal clone of b")
     }
 
     // ensure that it is a true copy
     a.Elements[0] = 2
-    if matrixEquals4(a, b, 0.0001) {
+    if matrixEquals4(a, b) {
         t.Error("clone should return deep copy")
     }
 }

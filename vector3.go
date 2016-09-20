@@ -241,13 +241,13 @@ func (v *Vector3) MultiplyVectors(a, b *Vector3) *Vector3 {
 
 }
 
-/*func (v *Vector3) ApplyEuler(euler *Euler) *Vector3 {
+func (v *Vector3) ApplyEuler(euler *Euler) *Vector3 {
 
     quaternion := NewQuaternion()
 
-    return v.ApplyQuaternion(quaternion.SetFromEuler(euler))
+    return v.ApplyQuaternion(quaternion.SetFromEuler(euler, false))
 
-}*/
+}
 
 /*func (v *Vector3) ApplyAxisAngle(axis *Vector3, angle float64) *Vector3 {
 
@@ -307,15 +307,15 @@ func (v *Vector3) ApplyProjection(m *Matrix4) *Vector3 {
 
 }
 
-/*func (v *Vector3) ApplyQuaternion(q *Quaternion) *Vector3 {
+func (v *Vector3) ApplyQuaternion(q *Quaternion) *Vector3 {
 
     x := v.X
     y := v.Y
     z := v.Z
-    qx := q.X
-    qy := q.Y
-    qz := q.Z
-    qw := q.W
+    qx := q.GetX()
+    qy := q.GetY()
+    qz := q.GetZ()
+    qw := q.GetW()
 
     // calculate quat * vector
 
@@ -332,7 +332,7 @@ func (v *Vector3) ApplyProjection(m *Matrix4) *Vector3 {
 
     return v
 
-}*/
+}
 
 func (v *Vector3) Project(camera Projector) *Vector3 {
 

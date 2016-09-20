@@ -117,17 +117,18 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
 
 }
 
-//TODO
-/*func (m *Matrix4) MakeRotationFromEuler(euler *Euler) *Matrix4 {
+func (m *Matrix4) MakeRotationFromEuler(euler *Euler) *Matrix4 {
 
     te := m.Elements
 
-    x, y, z := euler.X, euler.Y, euler.Z
+    x, y, z := euler.GetX(), euler.GetY(), euler.GetZ()
     a, b := math.Cos(x), math.Sin(x)
     c, d := math.Cos(y), math.Sin(y)
     e, f := math.Cos(z), math.Sin(z)
 
-    if euler.Order == XYZ {
+    order := euler.Order
+
+    if order == XYZ {
 
         ae := a * e
         af := a * f
@@ -146,7 +147,7 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
         te[6] = be + af*d
         te[10] = a * c
 
-    } else if euler.Order == YXZ {
+    } else if order == YXZ {
 
         ce := c * e
         cf := c * f
@@ -165,7 +166,7 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
         te[6] = df + ce*b
         te[10] = a * c
 
-    } else if euler.Order == ZXY {
+    } else if order == ZXY {
 
         ce := c * e
         cf := c * f
@@ -184,7 +185,7 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
         te[6] = b
         te[10] = a * c
 
-    } else if euler.Order == ZYX {
+    } else if order == ZYX {
 
         ae := a * e
         af := a * f
@@ -203,7 +204,7 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
         te[6] = b * c
         te[10] = a * c
 
-    } else if euler.Order == YZX {
+    } else if order == YZX {
 
         ac := a * c
         ad := a * d
@@ -222,7 +223,7 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
         te[6] = ad*f + bc
         te[10] = ac - bd*f
 
-    } else if euler.Order == XZY {
+    } else if order == XZY {
 
         ac := a * c
         ad := a * d
@@ -254,17 +255,18 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
     te[14] = 0
     te[15] = 1
 
-}*/
+    return m
 
-//TODO
-/*func (m *Matrix4) MakeRotationFromQuaternion(q *Quaternion) *Matrix4 {
+}
+
+func (m *Matrix4) MakeRotationFromQuaternion(q *Quaternion) *Matrix4 {
 
     te := m.Elements
 
-    x := q.X
-    y := q.Y
-    z := q.Z
-    w := q.W
+    x := q.GetX()
+    y := q.GetY()
+    z := q.GetZ()
+    w := q.GetW()
     x2 := x + x
     y2 := y + y
     z2 := z + z
@@ -303,7 +305,7 @@ func (m *Matrix4) ExtractRotation(target *Matrix4) *Matrix4 {
 
     return m
 
-}*/
+}
 
 func (m *Matrix4) LookAt(eye, target, up *Vector3) *Matrix4 {
 
